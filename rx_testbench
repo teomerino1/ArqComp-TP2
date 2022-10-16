@@ -1,0 +1,75 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 11.10.2022 17:21:04
+// Design Name: 
+// Module Name: rx_testbench
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module rx_testbench(
+
+    );
+    
+reg i_clock, reset,i_rx;
+wire i_tick;
+wire [7:0] o_buff_data;  //Buffer de datos recibidos
+wire o_flag_rx_done;      //flag de recepcion terminada
+localparam SIZE_TRAMA_BIT= 8 ;   //Size Data bits (TRAMA)
+localparam FR_COCK_HZ=4000;
+localparam BAUDRATE=100;
+localparam LEN_COUNTER=4;
+
+UART_rx #(SIZE_TRAMA_BIT)myRx (i_clock, reset,i_rx, i_tick,o_buff_data,o_flag_rx_done);
+
+
+    always #10 i_clock = ~i_clock;
+    
+    UART_tiks #(FR_COCK_HZ,BAUDRATE,LEN_COUNTER) tick_generator (.i_clk(i_clock),
+                           .i_reset(reset),
+                           .o_tick(i_tick)
+                 );
+                 
+    initial
+    begin
+     i_clock = 0;
+    reset = 1;
+    #10 
+    reset = 0;
+    i_rx = 1;
+    //DATA 
+    
+    
+    #52 
+    
+    i_rx = 0;
+    
+    #80 
+    
+    i_rx=1;
+    
+    #290
+    i_rx = 0;
+    
+    
+    
+    //stop bit  
+    
+    
+    #104
+    i_rx =1;
+        end
+endmodule
