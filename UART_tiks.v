@@ -15,19 +15,23 @@ module UART_tiks
 localparam MODULO = FR_COCK_HZ / (BAUDRATE * 16);
 reg [LEN_COUNTER-1:0]   contador = {LEN_COUNTER{1'b0}};
 reg  tik_reg;
-
 	
+	
+always @(posedge i_clk)
+	begin
+    if(contador > MODULO)
+        begin
+            tik_reg         = 1;
+            contador    = {LEN_COUNTER{1'b0}};
+        end
+    else
+         begin
+             tik_reg        = 0;
+             contador   = contador + 1'b1;
+         end	
+	end
+	//es por flanco de bajada para que no ocurra interferencias en los bloques (ocurrian inconsistencias de duplicado)
 
-//generador de tiks
-always @(posedge i_clk ) //!or posedge i_reset (Es mejor sincronico o asincronico?)
-begin 
-    if (i_reset) contador <= {LEN_COUNTER{1'b0}}; //Reset counter sincronico
-    else if (tik_reg) contador <= {LEN_COUNTER{1'b0}}; //Reset counter cuando se detecta un tik 
-    else contador <= contador +  1'b1; //Increment counter
-end
-
-//cableado de salidas
-always @(*) tik_reg = (contador == MODULO); 
 assign o_tick = tik_reg;
 
 
