@@ -42,6 +42,7 @@ UART_rx #(SIZE_TRAMA_BIT)myRx (i_clock, reset,i_rx, i_tick,o_buff_data,o_flag_rx
                            .i_reset(reset),
                            .o_tick(i_tick)
                  );
+    
                  
     initial
     begin
@@ -52,24 +53,10 @@ UART_rx #(SIZE_TRAMA_BIT)myRx (i_clock, reset,i_rx, i_tick,o_buff_data,o_flag_rx
     i_rx = 1;
     //DATA 
     
-    
-    #52 
-    
-    i_rx = 0;
-    
-    #80 
-    
-    i_rx=1;
-    
-    #290
-    i_rx = 0;
-    
-    
-    
-    //stop bit  
-    
-    
-    #104
-    i_rx =1;
+   
         end
+
+
+always #1000 i_rx = !i_rx;
+
 endmodule
