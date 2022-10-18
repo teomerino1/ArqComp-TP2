@@ -12,8 +12,8 @@ module UART_rx
     output wire o_flag_rx_done      //flag de recepcion terminada
 );
 
-localparam TICK16 = 1;             //Ticks de muestreo
-localparam TICK7 = 1;             //Ticks de sinc
+localparam TICK16 = 16;             //Ticks de muestreo
+localparam TICK7 = 7;             //Ticks de sinc
 
 
 //ESTADOS FSMD (REPRESENTACION: One-Cold)
@@ -71,14 +71,20 @@ always @(*)
 
         case(state_reg)
             ST_IDLE:
+            begin
+                buff_data_next   = 0; 
+                flag_rx_done_next = 0;
                 if(~i_rx)   //bit de start == 0
                     begin
                         state_next      =   ST_START;   //cambio de estado
                         tiks_count_next =   0;       //reset counter
                     end 
+              end
             ST_START: //sincronizacion a la mitad del bit (==7 tiks)
                 if(i_tick)
-                begin
+                begin 
+                    buff_data_next   = 0;
+                    flag_rx_done_next = 0; 
                     if(tiks_count == (TICK7-1)) //ticks === 7?
                         begin
                             state_next      =   (!i_rx)? ST_DATA : ST_IDLE ; //chequa que bit start = 0
@@ -88,11 +94,13 @@ always @(*)
                     else 
                         tiks_count_next = tiks_count + 1;
                  end
-            ST_DATA:
+            ST_DATA: 
                 if(i_tick)
-                begin
+                 begin
+                   
                     if(tiks_count   ==  (TICK16-1)) //ticks === 15? (is prox bit)
                         begin 
+                            buff_data_next = {i_rx,buff_data[(SIZE_TRAMA_BIT-1):1]}; //auto shift
                             tiks_count_next = 0;
                             //!obtengo un dato
                             if(bits_count == (SIZE_TRAMA_BIT-1)) //ultimo bit?
@@ -100,75 +108,33 @@ always @(*)
                             else
                                 bits_count_next = bits_count +1;
                         end
-                    else 
-                        tiks_count_next = tiks_count + 1; 
-                  end
-            ST_STOP:
+                    else
+                        begin 
+                            buff_data_next = buff_data;
+                            tiks_count_next = tiks_count + 1; 
+                        end
+                  end 
+            ST_STOP: 
                 if(i_tick)
                 begin
                     if(tiks_count == (TICK16-1)) //ticks === 15? (is prox bit)
                         begin
+                            flag_rx_done_next = i_rx; //only if stop bit == 1
                             state_next= ST_IDLE;
                         end 
-                    else 
+                    else
                         tiks_count_next=tiks_count +1;
+                    
                 end
             default: //!Error (deberiamos crear un estado de error?)
+                begin
                 state_next = ST_IDLE;
+                buff_data_next   = 0; //!should be code error? 
+                flag_rx_done_next = 0;
+                end
         endcase
     end
 
-//LOGICA DE SALIDA (MEALY)
-always @(*)
-    begin
-        case(state_reg)
-            ST_IDLE:
-                begin
-                    buff_data_next   = 0; 
-                    flag_rx_done_next = 0;
-                end
-            ST_START:
-            begin
-            if(i_tick)
-                begin
-                    buff_data_next   = 0;
-                    flag_rx_done_next = 0;
-                end
-             end
-            ST_DATA:
-            begin
-            if(i_tick)
-                begin
-                    flag_rx_done_next = 0;
-                    if(tiks_count   == (TICK16-1)) //ticks === 15? (is prox bit)
-                        buff_data_next = {i_rx,buff_data[(SIZE_TRAMA_BIT-1):1]}; //auto shift
-                    else 
-                       buff_data_next = buff_data;
-                end
-             
-           end
-
-    ST_STOP:
-            begin
-            if(i_tick)
-                begin
-                    //buff_data_next   = buff_data;
-                    if(tiks_count == (TICK16-1))
-                        flag_rx_done_next = i_rx; //only if stop bit == 1
-                    else
-                        flag_rx_done_next = 0;
-                end
-              end
-            default:
-                begin
-                    buff_data_next   = 0; //!should be code error? 
-                    flag_rx_done_next = 0;
-                end
-        
-        endcase
-                
-
-    end
 
 
 //cabeado de SALIDAS 
