@@ -1,54 +1,88 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 18.10.2022 16:54:21
+// Design Name: 
+// Module Name: INTERFAZ
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
-module interface
-	#(  parameter NB_INPUTS = 8,
-        parameter NB_OUTPUTS = 8,
-        parameter NB_OP = 6,
-        parameter NB_COUNT = 2)
-	(   input wire                  i_clock,
-        input wire                  i_reset,
-        input wire                  i_valid, //rx_done
-        input wire  signed [NB_INPUTS-1:0]  i_data,
-        output wire signed [NB_OUTPUTS-1:0] o_data_a,
-        output wire signed [NB_OUTPUTS-1:0] o_data_b,
-        output wire [NB_OP-1:0]      o_operation,
-        output wire o_transmit
-);
 
-reg [NB_OUTPUTS-1:0]    data_a;
-reg [NB_OUTPUTS-1:0]    data_b;
-reg [NB_OP-1:0]         operation;
-reg [NB_COUNT-1:0]      counter;
+module INTERFAZ
+#(
+    parameter  DATA_SIZE = 8 , // esto es A y B de la ALU
+    parameter  TRAMA_SIZE = 8,  //esto es el tamaño del buff que recibo desde RX
+    parameter  OPCODE_SIZE = 6, //es menor a SIZE_TRAMA !!
+    parameter  COUNTER_LEN = 5,
+    parameter  TOTAL_SIZE = ( DATA_SIZE *2 + TRAMA_SIZE) //tamaño total
+    
+  )
+(
+    input  wire i_clk,
+    input  wire i_reset, 
+    input  wire [(TRAMA_SIZE-1):0] i_trama_rx ,
+    input  wire i_flag_rx_done,
+    output wire [(DATA_SIZE-1):0] o_a,
+    output wire [(DATA_SIZE-1):0] o_b,
+    output wire [(OPCODE_SIZE-1):0] o_opcode,
+    output wire alu_ready
+     
+    );
+    
 
-always@(posedge i_clock)begin
-    if(i_reset)begin
-        data_a      <= {NB_OUTPUTS{1'b0}};
-        data_b      <= {NB_OUTPUTS{1'b0}};
-        operation   <= {NB_OP{1'b0}};
-        counter     <= {NB_COUNT{1'b0}};
-    end
-    else begin
-        if(i_valid) begin 
-            if(counter == 0)begin
-                data_a <= i_data;
-            end
-            if(counter == 1)begin
-                data_b <= i_data;
-            end
-            if(counter == 2)begin
-                operation <= i_data[NB_OP-1:0];
-            end
+parameter pointerOP_MSB = TRAMA_SIZE;
+parameter pointerOP_LSB = TRAMA_SIZE-OPCODE_SIZE;
+parameter pointerB_LSB = pointerOP_MSB+1 ;
+parameter pointerB_MSB = pointerB_LSB+DATA_SIZE-1 ;
+parameter pointerA_LSB = pointerB_MSB+1;
+parameter pointerA_MSB = TOTAL_SIZE-1;
 
-            counter <= counter + 1;
-        end
 
-        if(counter == 3)
-            counter <= 0;
-    end
+//variables locales 
+reg [DATA_SIZE-1:0] a,b;
+reg [OPCODE_SIZE:0] op;
+reg [DATA_SIZE:0] data_transmitir;
+reg [COUNTER_LEN-1:0] counter_bit;
+reg [TOTAL_SIZE-1:0] buff_all;
+
+always @(posedge i_clk)
+begin 
+	if(i_reset)
+		counter_bit <= 0;
+	else
+		begin
+		if(i_flag_rx_done)
+		begin
+			buff_all<={i_trama_rx,buff_all[TOTAL_SIZE-1:TRAMA_SIZE]  }; //Empuje
+			counter_bit <= counter_bit + TRAMA_SIZE ;
+		end
+		if(counter_bit >= TOTAL_SIZE )
+			begin
+			counter_bit <= 0;
+			//a<= buff_all[pointerA_MSB:pointerA_LSB];
+			//b<= buff_all[pointerB_MSB:pointerB_LSB];
+			//op<= buff_all[pointerOP_MSB:pointerOP_LSB];
+			//data_transmitir <=  i_alu_result; //YA TENGO EL DATO YA QUE LA ALU ES COMBINACIONAL
+			end
+		end
 end
 
-assign o_data_a     = data_a;
-assign o_data_b     = data_b;
-assign o_operation  = operation;
-assign o_transmit = (counter == 3)? 1'b1 : 1'b0;
+
+assign o_a = a;
+assign o_b = b;
+assign o_op = op;
+assign o_data_tx = data_transmitir;
 
 endmodule
