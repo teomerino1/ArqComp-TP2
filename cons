@@ -1,0 +1,22 @@
+# Clock signal
+set_property PACKAGE_PIN W5 [get_ports i_clock]							
+	set_property IOSTANDARD LVCMOS33 [get_ports i_clock]
+	create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports i_clock]
+ 
+
+
+
+##Buttons enable
+set_property PACKAGE_PIN U18 [get_ports i_reset]						
+	set_property IOSTANDARD LVCMOS33 [get_ports i_reset]
+
+
+	
+##Pmod Header JC
+
+  # Sch name = JC3
+set_property PACKAGE_PIN N17 [get_ports o_tx]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {o_tx}]
+##Sch name = JC4
+set_property PACKAGE_PIN P18 [get_ports i_rx]					
+	set_property IOSTANDARD LVCMOS33 [get_ports i_rx]
