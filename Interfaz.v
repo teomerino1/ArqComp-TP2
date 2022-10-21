@@ -34,20 +34,22 @@ module INTERFAZ
     input  wire i_reset, 
     input  wire [(TRAMA_SIZE-1):0] i_trama_rx ,
     input  wire i_flag_rx_done,
+    input wire [(DATA_SIZE-1):0] i_alu_result,
     output wire [(DATA_SIZE-1):0] o_a,
     output wire [(DATA_SIZE-1):0] o_b,
-    output wire [(OPCODE_SIZE-1):0] o_opcode,
-    output wire alu_ready
+    output wire [(OPCODE_SIZE-1):0] o_opcode, 
+    output wire o_done
      
     );
     
-
-parameter pointerOP_MSB = TRAMA_SIZE;
-parameter pointerOP_LSB = TRAMA_SIZE-OPCODE_SIZE;
-parameter pointerB_LSB = pointerOP_MSB+1 ;
+parameter pointerA_LSB = 0;
+parameter pointerA_MSB = TRAMA_SIZE-1;
+ 
+parameter pointerB_LSB = pointerA_MSB+1 ;
 parameter pointerB_MSB = pointerB_LSB+DATA_SIZE-1 ;
-parameter pointerA_LSB = pointerB_MSB+1;
-parameter pointerA_MSB = TOTAL_SIZE-1;
+
+parameter pointerOP_LSB = pointerB_MSB+1;
+parameter pointerOP_MSB = pointerOP_LSB+OPCODE_SIZE-1;
 
 
 //variables locales 
@@ -56,33 +58,38 @@ reg [OPCODE_SIZE:0] op;
 reg [DATA_SIZE:0] data_transmitir;
 reg [COUNTER_LEN-1:0] counter_bit;
 reg [TOTAL_SIZE-1:0] buff_all;
-
+reg done;
 always @(posedge i_clk)
 begin 
 	if(i_reset)
+	begin
 		counter_bit <= 0;
+		done = 0;
+	end
 	else
 		begin
 		if(i_flag_rx_done)
 		begin
 			buff_all<={i_trama_rx,buff_all[TOTAL_SIZE-1:TRAMA_SIZE]  }; //Empuje
 			counter_bit <= counter_bit + TRAMA_SIZE ;
+			done = 0;
 		end
 		if(counter_bit >= TOTAL_SIZE )
 			begin
 			counter_bit <= 0;
-			//a<= buff_all[pointerA_MSB:pointerA_LSB];
-			//b<= buff_all[pointerB_MSB:pointerB_LSB];
-			//op<= buff_all[pointerOP_MSB:pointerOP_LSB];
+			a<= buff_all[pointerA_MSB:pointerA_LSB];
+			b<= buff_all[pointerB_MSB:pointerB_LSB];
+			op<= buff_all[pointerOP_MSB:pointerOP_LSB];
 			//data_transmitir <=  i_alu_result; //YA TENGO EL DATO YA QUE LA ALU ES COMBINACIONAL
+			done <= 1;
 			end
 		end
 end
 
-
+assign o_done = done;
 assign o_a = a;
 assign o_b = b;
-assign o_op = op;
-assign o_data_tx = data_transmitir;
+assign o_opcode = op;
+//assign o_data_tx = data_transmitir;
 
-endmodule
+endmodule 
