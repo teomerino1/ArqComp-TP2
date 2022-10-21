@@ -37,7 +37,7 @@ parameter LEN_COUNTER_TIKS=8
 )
 (
 input wire i_clock, i_reset,
-input wire i_tx,
+input wire i_rx,
 output wire o_tx,o_flag_tx_done
 );
     
@@ -50,9 +50,8 @@ wire flag_rx_done;      //flag de recepcion terminada
 
 
 UART_tiks #(FR_COCK_HZ,BAUDRATE,LEN_COUNTER_TIKS) tick_generator (.i_clk(i_clock),.i_reset(i_reset),.o_tick(i_tick));
-UART_rx #(TRAMA_SIZE,LEN_BIT_COUNTER_RX)myRx (i_clock, i_reset,i_tx, i_tick,buff_data,flag_rx_done);
+UART_rx #(TRAMA_SIZE,LEN_BIT_COUNTER_RX)myRx (i_clock, i_reset,i_rx, i_tick,buff_data,flag_rx_done);
 INTERFAZ #(DATA_SIZE,TRAMA_SIZE,OPCODE_SIZE,COUNTER_LEN_INTERF,TOTAL_SIZE) my_int (i_clock, i_reset,buff_data,flag_rx_done,a,b,op,done_int);
 ALU #(DATA_SIZE) my_alu (a,b,op,resul_alu);
 UART_tx #(TRAMA_SIZE,LEN_BIT_COUNTER_RX)myTx (i_clock, i_reset,done_int,i_tick,resul_alu,o_tx,o_flag_tx_done);
 endmodule
-
