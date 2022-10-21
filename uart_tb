@@ -1,0 +1,80 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 11.10.2022 17:21:04
+// Design Name: 
+// Module Name: rx_testbench
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module interfaz_tb(
+
+);
+    
+ 
+   
+parameter  DATA_SIZE = 8  ; // esto es A y B de la ALU
+parameter  TRAMA_SIZE = 8;  //esto es el tamaño del buff que recibo desde RX
+parameter  OPCODE_SIZE = 6; //es menor a SIZE_TRAMA !!
+parameter  COUNTER_LEN = 5;
+parameter  TOTAL_SIZE = ( DATA_SIZE *2 + TRAMA_SIZE);//tamaño total
+reg i_clock, reset, b_start;
+wire i_tick,o_tx,o_tx2;
+reg [7:0] i_buff_data,i_buff_data_next;    
+wire o_flag_tx_done2,o_flag_tx_done;      //flag de recepcion terminada
+localparam SIZE_TRAMA_BIT= 8 ;   //Size Data bits (TRAMA)
+localparam FR_COCK_HZ=4000;
+localparam BAUDRATE=100;
+localparam LEN_COUNTER=4;
+
+UART_tiks #(FR_COCK_HZ,BAUDRATE,LEN_COUNTER) tick_generator (.i_clk(i_clock),.i_reset(reset),.o_tick(i_tick));
+
+UART_tx #(SIZE_TRAMA_BIT)myTx (i_clock, reset,b_start,i_tick,i_buff_data,o_tx,o_flag_tx_done);
+
+UART #() my_uart( i_clock, reset, o_tx, o_tx2,o_flag_tx_done2);
+always #10 i_clock = ~i_clock;
+
+//control de a b y op
+always @(posedge o_flag_tx_done)   
+begin
+    if(i_buff_data == 0) //paso a "a"
+        i_buff_data = 1;
+    else if(i_buff_data == 1) //paso a b
+        i_buff_data = 2;
+    else if(i_buff_data == 2) //paso a opcode
+        i_buff_data=  8'b100000;   //suma
+     else
+        i_buff_data = 0;
+     
+end   
+                 
+initial
+begin
+    
+i_clock = 0;
+reset = 1; 
+
+#100
+reset = 0; 
+//DATA 
+i_buff_data = 8'b0;  //a
+#100
+b_start=1;
+
+end 
+ 
+
+endmodule
