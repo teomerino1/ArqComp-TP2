@@ -80,6 +80,7 @@ begin
             end
         ST_START:
         begin
+        flag_tx_done_next=0;
             tx_next = 0; //start bit
             if(i_tick)
             begin
