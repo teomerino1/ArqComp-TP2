@@ -1,142 +1,95 @@
-module UART_tx
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 18.10.2022 16:54:21
+// Design Name: 
+// Module Name: INTERFAZ
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module INTERFAZ
 #(
-    parameter SIZE_TRAMA_BIT = 8, // len TRAMA of bit
-    parameter SIZE_BIT_COUNTER = 3 //bits del contador para contar de 0 hasta SIZE_BIT_COUNTER-1
-)
+    parameter  DATA_SIZE = 8 , // esto es A y B de la ALU
+    parameter  TRAMA_SIZE = 8,  //esto es el tamaño del buff que recibo desde RX
+    parameter  OPCODE_SIZE = 6, //es menor a SIZE_TRAMA !!
+    parameter  COUNTER_LEN = 5,
+    parameter  TOTAL_SIZE = ( DATA_SIZE *2 + TRAMA_SIZE) //tamaño total
+    
+  )
 (
-    input wire i_clk,               //Clock
-    input wire i_reset,             //Reset
-    input wire i_tx_start,          //Start bit
-    input wire i_tick,              //Tick
-    input wire [(SIZE_TRAMA_BIT-1):0] i_buff_trama,   //Buffer de datos recibidos
-    output wire o_tx,               //Serial data transmitida
-    output wire o_flag_tx_done      //"flag" de transmisiÃ³n terminada
-);
+    input  wire i_clk,
+    input  wire i_reset, 
+    input  wire [(TRAMA_SIZE-1):0] i_trama_rx ,
+    input  wire i_flag_rx_done,
+    //input wire [(DATA_SIZE-1):0] i_alu_result,
+    output wire [(DATA_SIZE-1):0] o_a,
+    output wire [(DATA_SIZE-1):0] o_b,
+    output wire [(OPCODE_SIZE-1):0] o_opcode, 
+    output wire o_done
+     
+    );
+    
+parameter pointerA_LSB = 0;
+parameter pointerA_MSB = TRAMA_SIZE-1;
+ 
+parameter pointerB_LSB = pointerA_MSB+1 ;
+parameter pointerB_MSB = pointerB_LSB+DATA_SIZE-1 ;
 
-localparam TICKS_PER_BIT = 15;             //Ticks de muestreo - 1
-
-//ESTADOS FSMD (REPRESENTACION: One-Cold)
-localparam [3:0]
-    ST_IDLE     =   4'b1110,        //Estado de espera
-    ST_START    =   4'b1101,        //Estado de transmision de start bit 
-    ST_DATA     =   4'b1011,        //Estado de transmision de data bits
-    ST_STOP     =   4'b0111;        //Estado de transmision de stop bit
-
-
-//VARIABLES LOCALES
-reg      tx_reg,            tx_next;          //dato a transmitir
-reg      flag_tx_done,      flag_tx_done_next; //"flag" de transmisiÃ³n terminada
-reg[3:0] state_reg,         state_next;       //Estado
-reg[3:0] tiks_count,        tiks_count_next;  //contador de ticks
-reg[(SIZE_BIT_COUNTER-1):0] bits_count,    bits_count_next;  //contador de bits
-reg[(SIZE_TRAMA_BIT-1):0]   buff_trama,     i_buff_trama_next;   //buffer de bits por transmitir
+parameter pointerOP_LSB = pointerB_MSB+1;
+parameter pointerOP_MSB = pointerOP_LSB+OPCODE_SIZE-1;
 
 
-//LOGICA DE FSMD ESTADO
-always @ (posedge i_clk)
-begin
-    if (i_reset) //reset sincronico
-    begin
-        state_reg     <= ST_IDLE;
-        tiks_count    <= 0;
-        bits_count    <= 0;
-        buff_trama    <= 0;
-        tx_reg        <= 1; //~start
-        flag_tx_done  <= 0;
-    end
-    else
-    begin
-        state_reg       <= state_next;
-        tiks_count      <= tiks_count_next;
-        bits_count      <= bits_count_next;
-        buff_trama      <= i_buff_trama_next;
-        flag_tx_done    <= flag_tx_done_next;
-        tx_reg          <= tx_next;
-    end
+//variables locales 
+reg [DATA_SIZE-1:0] a,b;
+reg [OPCODE_SIZE:0] op;
+reg [DATA_SIZE:0] data_transmitir;
+reg [COUNTER_LEN-1:0] counter_bit;
+reg [TOTAL_SIZE-1:0] buff_all;
+reg done;
+always @(posedge i_clk)
+begin 
+	if(i_reset)
+	begin
+		counter_bit <= 0;
+		done = 0;
+	end
+	else
+		begin
+		if(i_flag_rx_done)
+		begin
+			buff_all<={i_trama_rx,buff_all[TOTAL_SIZE-1:TRAMA_SIZE]  }; //Empuje
+			counter_bit <= counter_bit + TRAMA_SIZE ;
+			done = 0;
+		end
+		if(counter_bit >= TOTAL_SIZE )
+			begin
+			counter_bit <= 0;
+			a<= buff_all[pointerA_MSB:pointerA_LSB];
+			b<= buff_all[pointerB_MSB:pointerB_LSB];
+			op<= buff_all[pointerOP_MSB:pointerOP_LSB];
+			//data_transmitir <=  i_alu_result; //YA TENGO EL DATO YA QUE LA ALU ES COMBINACIONAL
+			done <= 1;
+			end
+		end
 end
 
-//LOGICA DEL SIGUIENTE ESTADO
-always @(*)
-begin
-
-    //else unificado para cada *case*
-    state_next          = state_reg; 
-    tiks_count_next     = tiks_count;
-    bits_count_next     = bits_count;
-    i_buff_trama_next   = buff_trama;
-    //! tx_next = 0;
-
-    case(state_reg)
-        ST_IDLE:
-            begin
-                tx_next = 1; //~start
-                if (i_tx_start)
-                begin
-                    state_next          = ST_START;
-                    tiks_count_next     = 0;             //reset count tiks
-                    i_buff_trama_next   = i_buff_trama;  //almacena el dato a transmitir
-                    //tx_next  = 0;       //start bit
-                end
-            end
-        ST_START:
-        begin
-        flag_tx_done_next=0;
-            tx_next = 0; //start bit
-            if(i_tick)
-            begin
-                if (tiks_count == TICKS_PER_BIT) 
-                    begin
-                        state_next      = ST_DATA;
-                        tiks_count_next = 0; //reset count tiks
-                        bits_count_next = 0; //reset count bits
-                    end
-                else
-                    tiks_count_next = tiks_count + 1;
-            end
-        end
-        ST_DATA:
-        begin
-            tx_next = buff_trama[0];
-            if (i_tick)
-            begin
-                if (tiks_count == TICKS_PER_BIT)
-                    begin
-                        tiks_count_next = 0;                 //reset count tiks
-                        i_buff_trama_next  = buff_trama >> 1;       //shift buffer 
-                        if (bits_count == (SIZE_TRAMA_BIT-1))   //termine de enviar los bits ?
-                                state_next = ST_STOP;
-                        else
-                            bits_count_next = bits_count + 1;
-                    end
-                else 
-                    tiks_count_next = tiks_count + 1; //incremento el contador de ticks
-            end
-        end
-        ST_STOP:
-        begin
-            tx_next = 1; //bit de stop es un 1
-            if (i_tick)
-            begin
-                if (tiks_count == TICKS_PER_BIT)
-                begin
-                    state_next = ST_IDLE;
-                    flag_tx_done_next = 1; //flag indico que termine de enviar
-                end
-                else 
-                    tiks_count_next = tiks_count + 1; 
-            end
-        end
-        default:
-        begin
-            tx_next = 1; //error (nunca queremos un 0 aca o podriamos comenzar una transmision erronea)
-            state_next = ST_IDLE; 
-            flag_tx_done_next = flag_tx_done; //! Que hacemos aca?
-        end
-    endcase
-end
-
-//Cableado de salida
-assign o_tx = tx_reg;
-assign o_flag_tx_done = flag_tx_done;
+assign o_done = done;
+assign o_a = a;
+assign o_b = b;
+assign o_opcode = op;
+//assign o_data_tx = data_transmitir;
 
 endmodule
