@@ -92,4 +92,4 @@ assign o_b = b;
 assign o_opcode = op;
 //assign o_data_tx = data_transmitir;
 
-endmodule
+endmodule 
