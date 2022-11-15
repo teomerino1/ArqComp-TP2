@@ -1,58 +1,40 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 10/21/2022 09:55:48 AM
-// Design Name: 
-// Module Name: UART
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+	`timescale 1ns / 1ps
 
+	module UART
+			#(
+			parameter TRAMA_SIZE  = 8 //tama�o de la trama
+			)
+			(
+			input wire i_clk,
+			input wire i_reset,
+			input wire i_rx,
+			input wire [TRAMA_SIZE-1:0] i_tx, 
+			input wire i_tx_start,
+			output wire [TRAMA_SIZE-1:0] o_rx,
+			output wire o_rx_done_tick,
+			output wire o_tx,
+			output wire o_tx_done_tick
+			);
 
-module UART
+	wire ticks;
 
-#(
+	UART_ticks uart_ticks (.i_clk(i_clk),
+								   .i_reset(i_reset),
+								   .o_tick(ticks));
 
-parameter  DATA_SIZE = 8  , // esto es A y B de la ALU
-parameter  TRAMA_SIZE = 8,  //esto es el tamaño del buff que recibo desde RX
-parameter LEN_BIT_COUNTER_RX=3,
-parameter  OPCODE_SIZE = 6, //es menor a SIZE_TRAMA !!
-parameter  COUNTER_LEN_INTERF = 5,
-parameter  TOTAL_SIZE = ( DATA_SIZE *2 + TRAMA_SIZE),//tamaño total
-parameter FR_COCK_HZ=4000,
-parameter BAUDRATE=100,
-parameter LEN_COUNTER_TIKS=8
+	UART_rx uart_rx (.i_clk(i_clk),
+							 .i_reset(i_reset),
+							 .i_rx(i_rx),
+                             .i_tick(ticks),
+							 .o_flag_rx_done(o_rx_done_tick),
+							 .o_buff_data(o_rx));
 
-)
-(
-input wire i_clock, i_reset,
-input wire i_tx,
-output wire o_tx,o_flag_tx_done
-);
-    
-       
-wire [7:0] a,b,resul_alu;
-wire [5:0] op;    
-wire [7:0] buff_data;  //Buffer de TRAMA recibidos
-wire done_int,i_tick;
-wire flag_rx_done;      //flag de recepcion terminada
+	UART_tx uart_tx (.i_clk(i_clk),
+							   .i_reset(i_reset),
+							   .i_tx_start(i_tx_start),
+							   .i_tick(ticks),
+							   .i_buff_trama(i_tx),
+							   .o_flag_tx_done(o_tx_done_tick),
+							   .o_tx(o_tx));    
 
-
-UART_tiks #(FR_COCK_HZ,BAUDRATE,LEN_COUNTER_TIKS) tick_generator (.i_clk(i_clock),.i_reset(i_reset),.o_tick(i_tick));
-UART_rx #(TRAMA_SIZE,LEN_BIT_COUNTER_RX)myRx (i_clock, i_reset,i_tx, i_tick,buff_data,flag_rx_done);
-INTERFAZ #(DATA_SIZE,TRAMA_SIZE,OPCODE_SIZE,COUNTER_LEN_INTERF,TOTAL_SIZE) my_int (i_clock, i_reset,buff_data,flag_rx_done,a,b,op,done_int);
-ALU #(DATA_SIZE) my_alu (a,b,op,resul_alu);
-UART_tx #(TRAMA_SIZE,LEN_BIT_COUNTER_RX)myTx (i_clock, i_reset,done_int,i_tick,resul_alu,o_tx,o_flag_tx_done);
-endmodule
-
+	endmodule
